@@ -1,0 +1,34 @@
+import { test as setup } from '@playwright/test';
+import { LoginPage } from '../pages/loginPage';
+import { getEnv } from '../utils/env';
+import fs from 'fs';
+import { dirname } from 'path';
+import { STORAGE_STATE } from '../../playwright.config';
+
+const authDir = dirname(STORAGE_STATE);
+
+/**
+ * Global authentication setup.
+ * Runs once before all tests to authenticate and save the browser storage state.
+ * All subsequent tests will reuse this authenticated session.
+ */
+setup('authenticate', async ({ page }) => {
+  const env = getEnv();
+  const loginPage = new LoginPage(page);
+
+  // Ensure the .auth directory exists
+  if (!fs.existsSync(authDir)) {
+    fs.mkdirSync(authDir, { recursive: true });
+  }
+
+  // Navigate to the base URL and log in
+  await loginPage.goto();
+  await loginPage.login(env.userId, env.password);
+  await loginPage.assertLoggedIn();
+
+  // Wait for the app to fully load after login
+  await page.waitForLoadState('domcontentloaded');
+
+  // Save the authenticated state to a file
+  await page.context().storageState({ path: STORAGE_STATE });
+});
